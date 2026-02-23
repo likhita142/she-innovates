@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RepoStory AI 🚀</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:            #0e1117;
+  --panel-bg:      #161b27;
+  --panel-border:  #252d3f;
+  --card-bg:       #1c2232;
+  --input-bg:      #222840;
+  --input-border:  #2e3a52;
+  --btn-purple:    #6c63ff;
+  --btn-hover:     #7c74ff;
+  --green-bg:      #0e2e1a;
+  --green-border:  #2ea043;
+  --green-text:    #3fb950;
+  --text:          #e8edf5;
+  --muted:         #8892a4;
+  --dim:           #4a546a;
+  --output-bg:     #151e30;
+  --output-border: #1e3050;
+  --output-text:   #5b9bd5;
+  --red-dot:       #e5534b;
+  --toggle-bg:     #1a2035;
+  --toggle-border: #2a3550;
+  --yellow:        #e3b341;
+  --cyan:          #58a6ff;
+  --orange:        #f0883e;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  overflow-x: hidden;
+}
+
+/* ─── Sidebar ─── */
+#sidebar {
+  width: 260px; min-width: 260px;
+  background: var(--panel-bg);
+  border-right: 1px solid var(--panel-border);
+  display: flex; flex-direction: column;
+  padding: 24px 16px;
+  transition: width .3s ease, min-width .3s ease, padding .3s ease, opacity .25s ease;
+  overflow: hidden; flex-shrink: 0;
+}
+#sidebar.collapsed { width:0; min-width:0; padding-left:0; padding-right:0; opacity:0; border-right-color:transparent; }
+
+#toggle-btn {
+  position: fixed; top: 50%; transform: translateY(-50%);
+  left: 260px; width: 20px; height: 48px;
+  background: var(--toggle-bg); border: 1px solid var(--toggle-border);
+  border-left: none; border-radius: 0 6px 6px 0;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  z-index: 1000; transition: left .3s ease, background .2s;
+  color: var(--muted); font-size: 13px; user-select: none;
+}
+#toggle-btn:hover { background:#222840; color:var(--text); }
+body.sidebar-collapsed #toggle-btn { left:0; }
+
+.brand { font-size:18px; font-weight:700; color:var(--text); margin-bottom:16px; white-space:nowrap; display:flex; align-items:center; gap:8px; }
+
+.hackathon-badge {
+  background: var(--green-bg); border:1px solid var(--green-border);
+  border-radius:8px; padding:10px 14px; color:var(--green-text);
+  font-size:13px; font-weight:600; margin-bottom:22px; white-space:nowrap;
+  display:flex; align-items:center; gap:8px;
+}
+.live-dot { width:7px; height:7px; background:var(--green-text); border-radius:50%; box-shadow:0 0 6px var(--green-text); animation:blink 1.5s ease infinite; }
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+
+.nav-label { font-size:11px; color:var(--dim); font-weight:600; margin-bottom:8px; white-space:nowrap; text-transform:uppercase; letter-spacing:1px; }
+
+.nav-item {
+  display:flex; align-items:center; gap:10px; padding:9px 12px;
+  border-radius:7px; font-size:14px; font-weight:500; color:var(--muted);
+  cursor:pointer; white-space:nowrap; transition:background .15s, color .15s;
+  border:1px solid transparent; margin-bottom:4px; user-select:none;
+}
+.nav-item:hover { background:#1e2638; color:var(--text); }
+.nav-item.active { color:var(--text); background:#1e2638; border-color:var(--panel-border); }
+.nav-icon { font-size:14px; width:18px; text-align:center; }
+
+.sb-divider { height:1px; background:var(--panel-border); margin:16px 0; }
+
+.sb-stats { display:flex; flex-direction:column; gap:8px; }
+.sb-stat { display:flex; justify-content:space-between; align-items:center; }
+.sb-stat-label { font-size:11px; color:var(--dim); font-family:'Space Mono',monospace; }
+.sb-stat-value { font-size:11px; color:var(--green-text); font-family:'Space Mono',monospace; font-weight:700; }
+.sb-stat-value.neutral { color:var(--cyan); }
+
+.sidebar-footer { margin-top:auto; font-size:11px; color:var(--dim); line-height:1.9; white-space:nowrap; padding-top:16px; border-top:1px solid var(--panel-border); }
+
+/* ─── Backend config bar ─── */
+.config-bar {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 12px; background:rgba(255,255,255,0.02);
+  border:1px solid var(--panel-border); border-radius:8px;
+  margin-bottom:16px;
+}
+.config-bar label { font-size:11px; color:var(--dim); white-space:nowrap; font-family:'Space Mono',monospace; }
+.config-input {
+  flex:1; background:transparent; border:none; outline:none;
+  font-size:11px; color:var(--cyan); font-family:'Space Mono',monospace; min-width:0;
+}
+.config-status { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.config-status.online  { background:var(--green-text); box-shadow:0 0 5px var(--green-text); }
+.config-status.offline { background:var(--red-dot); }
+.config-status.checking { background:var(--yellow); animation:blink .8s ease infinite; }
+
+/* ─── Main content ─── */
+#main { flex:1; padding:48px 60px; min-width:0; overflow-y:auto; }
+
+.page-title {
+  text-align:center; font-size:2.2rem; font-weight:700; color:var(--text);
+  margin-bottom:6px; display:flex; align-items:center; justify-content:center; gap:12px;
+}
+.page-eyebrow { text-align:center; font-size:11px; color:var(--dim); font-family:'Space Mono',monospace; letter-spacing:2px; text-transform:uppercase; margin-bottom:36px; }
+
+.subtitle { font-size:16px; color:var(--text); margin-bottom:6px; font-weight:600; }
+.subtitle-sub { font-size:13px; color:var(--muted); margin-bottom:24px; }
+
+.form-label { font-size:12px; color:var(--muted); margin-bottom:6px; display:block; text-transform:uppercase; letter-spacing:1px; font-weight:600; }
+
+.repo-input {
+  width:100%; background:var(--input-bg); border:1px solid var(--input-border);
+  border-radius:8px; padding:12px 16px; font-size:14px; color:var(--muted);
+  font-family:'Inter',sans-serif; font-style:italic; outline:none;
+  transition:border-color .2s, box-shadow .2s; margin-bottom:16px;
+}
+.repo-input:focus { border-color:var(--btn-purple); box-shadow:0 0 0 3px rgba(108,99,255,0.15); color:var(--text); font-style:normal; }
+.repo-input::placeholder { color:#3d4d68; font-style:italic; }
+
+/* Quick example chips */
+.chip-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
+.chip {
+  font-size:11px; font-family:'Space Mono',monospace;
+  padding:4px 12px; border-radius:20px; cursor:pointer;
+  background:rgba(255,255,255,0.03); border:1px solid var(--panel-border);
+  color:var(--dim); transition:all .15s; white-space:nowrap;
+}
+.chip:hover { background:rgba(108,99,255,0.1); border-color:var(--btn-purple); color:var(--text); }
+
+.cta-btn {
+  background:linear-gradient(135deg,#6c63ff,#8b5cf6); color:#fff; border:none;
+  border-radius:8px; padding:11px 28px; font-size:14px; font-weight:600;
+  font-family:'Inter',sans-serif; cursor:pointer;
+  transition:opacity .2s, transform .15s, box-shadow .2s;
+  margin-bottom:24px; box-shadow:0 2px 12px rgba(108,99,255,0.3);
+  display:inline-flex; align-items:center; gap:8px;
+}
+.cta-btn:hover { opacity:.92; transform:translateY(-1px); box-shadow:0 4px 20px rgba(108,99,255,0.45); }
+.cta-btn:active { transform:translateY(0); }
+.cta-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+
+/* ─── Progress steps ─── */
+.progress-steps { margin-bottom:20px; display:flex; flex-direction:column; gap:6px; }
+.step {
+  display:flex; align-items:center; gap:10px; padding:10px 14px;
+  border-radius:8px; font-size:13px; font-family:'Space Mono',monospace;
+  border:1px solid transparent; transition:all .3s;
+}
+.step.waiting { color:var(--dim); }
+.step.active  { background:rgba(108,99,255,0.06); border-color:rgba(108,99,255,0.2); color:var(--cyan); }
+.step.done    { color:var(--green-text); }
+.step.error   { color:var(--red-dot); background:rgba(229,83,75,0.05); border-color:rgba(229,83,75,0.2); }
+.step-icon    { width:18px; text-align:center; font-size:13px; flex-shrink:0; }
+
+/* ─── RESULT PANEL ─── */
+.result-panel { display:none; animation:fadeIn .35s ease; }
+.result-panel.visible { display:block; }
+
+/* Repo slug badge */
+.repo-slug {
+  display:inline-flex; align-items:center; gap:8px;
+  background:var(--card-bg); border:1px solid var(--panel-border);
+  border-radius:8px; padding:6px 14px; font-family:'Space Mono',monospace;
+  font-size:12px; color:var(--muted); margin-bottom:16px;
+}
+
+/* Stats row */
+.stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }
+.stat-card {
+  background:var(--card-bg); border:1px solid var(--panel-border);
+  border-radius:10px; padding:14px 16px; display:flex; align-items:center; gap:12px;
+  transition:border-color .2s;
+}
+.stat-card:hover { border-color:var(--btn-purple); }
+.stat-card-icon { font-size:1.3rem; }
+.stat-card-val { font-size:1.2rem; font-weight:700; font-family:'Space Mono',monospace; color:var(--text); line-height:1; }
+.stat-card-label { font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin-top:2px; }
+
+/* Tabs */
+.tabs { display:flex; gap:4px; margin-bottom:20px; background:rgba(255,255,255,0.02); border:1px solid var(--panel-border); border-radius:10px; padding:4px; }
+.tab {
+  flex:1; padding:8px 12px; border-radius:7px; text-align:center;
+  font-size:12px; font-weight:600; cursor:pointer; transition:all .2s;
+  color:var(--dim); border:1px solid transparent; white-space:nowrap;
+  display:flex; align-items:center; justify-content:center; gap:6px;
+}
+.tab:hover { color:var(--text); background:rgba(255,255,255,0.03); }
+.tab.active { background:rgba(108,99,255,0.15); border-color:rgba(108,99,255,0.25); color:var(--text); }
+
+.tab-panel { display:none; animation:fadeIn .25s ease; }
+.tab-panel.active { display:block; }
+
+/* Story content */
+.story-text {
+  background:var(--output-bg); border:1px solid var(--output-border);
+  border-radius:10px; padding:22px 26px; font-size:14px; color:#c8d8ee;
+  line-height:1.85; white-space:pre-wrap;
+}
+
+/* TLDR */
+.tldr-list { display:flex; flex-direction:column; gap:0; }
+.tldr-item {
+  display:flex; align-items:flex-start; gap:14px;
+  padding:14px 0; border-bottom:1px solid var(--panel-border);
+  animation:fadeIn .4s ease both;
+}
+.tldr-item:last-child { border-bottom:none; }
+.tldr-icon {
+  width:32px; height:32px; border-radius:8px; flex-shrink:0; margin-top:1px;
+  background:rgba(108,99,255,0.12); border:1px solid rgba(108,99,255,0.2);
+  display:flex; align-items:center; justify-content:center; font-size:14px;
+}
+.tldr-meta { font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:4px; font-family:'Space Mono',monospace; }
+.tldr-body { font-size:13px; color:var(--muted); line-height:1.55; }
+
+/* Milestones timeline */
+.milestone-timeline { position:relative; padding-left:22px; }
+.milestone-timeline::before {
+  content:''; position:absolute; left:5px; top:8px; bottom:8px;
+  width:2px; background:linear-gradient(to bottom,var(--btn-purple),#8b5cf6,transparent); border-radius:2px;
+}
+.milestone-item { position:relative; margin-bottom:16px; animation:fadeIn .4s ease both; }
+.milestone-dot {
+  position:absolute; left:-22px; top:12px;
+  width:12px; height:12px; border-radius:50%;
+  border:2px solid var(--bg); background:var(--cyan);
+  box-shadow:0 0 8px rgba(88,166,255,0.5);
+}
+.milestone-dot.bugfix   { background:var(--red-dot);  box-shadow:0 0 8px rgba(229,83,75,0.5); }
+.milestone-dot.refactor { background:var(--yellow);   box-shadow:0 0 8px rgba(227,179,65,0.5); }
+.milestone-dot.release  { background:var(--green-text);box-shadow:0 0 8px rgba(63,185,80,0.5); }
+.milestone-dot.init     { background:var(--dim); box-shadow:none; }
+
+.milestone-card {
+  background:var(--card-bg); border:1px solid var(--panel-border);
+  border-radius:10px; padding:12px 16px; transition:all .2s; cursor:default;
+}
+.milestone-card:hover { border-color:rgba(108,99,255,0.3); transform:translateX(3px); background:#1e2638; }
+.mc-top { display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
+.mc-title { font-weight:600; font-size:13px; color:var(--text); }
+.mc-date  { font-family:'Space Mono',monospace; font-size:10px; color:var(--dim); margin-left:auto; }
+.mc-desc  { font-size:12px; color:var(--muted); line-height:1.5; }
+
+.type-badge {
+  font-family:'Space Mono',monospace; font-size:10px;
+  padding:2px 8px; border-radius:20px; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+}
+.tb-feature  { background:rgba(88,166,255,0.12); color:var(--cyan);       border:1px solid rgba(88,166,255,.2); }
+.tb-bugfix   { background:rgba(229,83,75,0.1);   color:var(--red-dot);    border:1px solid rgba(229,83,75,.2); }
+.tb-refactor { background:rgba(227,179,65,0.1);  color:var(--yellow);     border:1px solid rgba(227,179,65,.2); }
+.tb-release  { background:rgba(63,185,80,0.1);   color:var(--green-text); border:1px solid rgba(63,185,80,.2); }
+.tb-init     { background:rgba(255,255,255,0.04); color:var(--dim);        border:1px solid rgba(255,255,255,.07); }
+.tb-other    { background:rgba(255,255,255,0.04); color:var(--dim);        border:1px solid rgba(255,255,255,.07); }
+
+/* Health score */
+.health-grid { display:grid; grid-template-columns:160px 1fr; gap:20px; }
+.health-score-box {
+  background:var(--card-bg); border:1px solid var(--panel-border);
+  border-radius:12px; padding:22px 16px; text-align:center; display:flex;
+  flex-direction:column; align-items:center; gap:8px;
+}
+.hs-number { font-family:'Space Mono',monospace; font-size:3rem; font-weight:700; line-height:1; }
+.hs-healthy  { color:var(--green-text); text-shadow:0 0 20px rgba(63,185,80,.4); }
+.hs-moderate { color:var(--yellow);     text-shadow:0 0 20px rgba(227,179,65,.4); }
+.hs-needs    { color:var(--red-dot);    text-shadow:0 0 20px rgba(229,83,75,.4); }
+.hs-label { font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:2px; font-family:'Space Mono',monospace; }
+.hs-bar-wrap { width:100%; background:rgba(255,255,255,0.05); border-radius:4px; height:4px; }
+.hs-bar { height:4px; border-radius:4px; transition:width 1s ease; }
+
+.health-reasons { display:flex; flex-direction:column; gap:0; }
+.hr-item {
+  display:flex; align-items:center; gap:10px; padding:11px 0;
+  border-bottom:1px solid var(--panel-border); font-size:13px; color:var(--muted);
+}
+.hr-item:last-child { border-bottom:none; }
+.hr-check {
+  width:20px; height:20px; border-radius:50%;
+  background:rgba(63,185,80,0.1); border:1px solid rgba(63,185,80,.25);
+  display:flex; align-items:center; justify-content:center;
+  font-size:10px; color:var(--green-text); flex-shrink:0;
+}
+
+.patterns-box {
+  margin-top:16px; padding:16px 20px;
+  background:rgba(88,166,255,0.04); border:1px solid rgba(88,166,255,.1);
+  border-radius:10px; font-size:13px; color:var(--muted);
+  line-height:1.75; font-style:italic; position:relative;
+}
+.patterns-box::before {
+  content:'"'; position:absolute; top:-8px; left:14px;
+  font-size:2.5rem; color:var(--btn-purple); opacity:.2;
+  font-family:Georgia,serif; line-height:1;
+}
+
+/* ASK mode */
+.quick-chips { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+.quick-chip {
+  font-size:11px; font-family:'Space Mono',monospace;
+  padding:5px 13px; border-radius:20px; cursor:pointer;
+  background:rgba(255,255,255,0.03); border:1px solid var(--panel-border);
+  color:var(--dim); transition:all .15s; white-space:nowrap;
+}
+.quick-chip:hover { background:rgba(108,99,255,0.1); border-color:var(--btn-purple); color:var(--text); }
+
+.answer-box {
+  background:var(--output-bg); border:1px solid var(--output-border);
+  border-left:3px solid var(--green-text); border-radius:10px;
+  padding:20px 22px; font-size:14px; color:var(--text);
+  line-height:1.8; animation:fadeIn .3s ease; position:relative;
+}
+.answer-box::before { content:'💡'; position:absolute; top:-12px; left:14px; background:var(--bg); padding:0 4px; font-size:1.1rem; }
+
+/* Error / placeholder boxes */
+.output-box { background:var(--output-bg); border:1px solid var(--output-border); border-radius:10px; padding:18px 22px; min-height:72px; font-size:15px; transition:all .3s ease; }
+.output-box.placeholder { color:var(--output-text); }
+.output-box.error       { color:var(--red-dot); border-color:#3d1f20; background:rgba(229,83,75,0.05); }
+
+.loading { color:var(--muted); font-size:13px; display:flex; align-items:center; gap:10px; font-family:'Space Mono',monospace; }
+.spinner { width:16px; height:16px; border:2px solid var(--input-border); border-top-color:var(--btn-purple); border-radius:50%; animation:spin .7s linear infinite; flex-shrink:0; }
+@keyframes spin { to { transform:rotate(360deg); } }
+@keyframes fadeIn { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:translateY(0);} }
+
+.page-section { display:none; animation:fadeIn .25s ease; }
+.page-section.active { display:block; }
+
+/* Empty state */
+.empty-state { text-align:center; padding:40px 20px; color:var(--dim); }
+.empty-state .es-icon { font-size:2.5rem; opacity:.35; margin-bottom:12px; }
+.empty-state .es-text { font-size:12px; font-family:'Space Mono',monospace; }
+
+@media(max-width:760px) {
+  #main { padding:32px 20px; }
+  .stats-row { grid-template-columns:1fr 1fr; }
+  .health-grid { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════ SIDEBAR ═══════ -->
+<div id="sidebar">
+  <div class="brand">🚀 RepoStory AI</div>
+
+  <div class="hackathon-badge">
+    <div class="live-dot"></div>
+    🏆 Hackathon Demo · Live
+  </div>
+
+  <div class="nav-label">Navigate</div>
+
+  <div class="nav-item active" id="nav-story" onclick="switchPage('story')">
+    <span class="nav-icon">📖</span> Story Mode
+  </div>
+  <div class="nav-item" id="nav-ask" onclick="switchPage('ask')">
+    <span class="nav-icon">💬</span> Ask Repo
+  </div>
+
+  <div class="sb-divider"></div>
+  <div class="nav-label">System</div>
+
+  <div class="sb-stats">
+    <div class="sb-stat">
+      <span class="sb-stat-label">⚡ Model</span>
+      <span class="sb-stat-value neutral">LLaMA 3.3 70B</span>
+    </div>
+    <div class="sb-stat">
+      <span class="sb-stat-label">🚀 Speed</span>
+      <span class="sb-stat-value">276 tok/s</span>
+    </div>
+    <div class="sb-stat">
+      <span class="sb-stat-label">📦 Commits</span>
+      <span class="sb-stat-value" id="sb-commits">—</span>
+    </div>
+    <div class="sb-stat">
+      <span class="sb-stat-label">🔗 Last Repo</span>
+      <span class="sb-stat-value neutral" id="sb-last-repo" style="font-size:10px;color:var(--muted);">—</span>
+    </div>
+    <div class="sb-stat">
+      <span class="sb-stat-label">🌐 Backend</span>
+      <span class="sb-stat-value" id="sb-backend-status">checking…</span>
+    </div>
+  </div>
+
+  <div class="sb-divider"></div>
+  <div class="nav-label">Backend URL</div>
+  <div class="config-bar">
+    <label>API</label>
+    <input class="config-input" id="backend-url" value="http://localhost:8000" spellcheck="false" oninput="scheduleHealthCheck()" />
+    <div class="config-status checking" id="health-dot"></div>
+  </div>
+
+  <div class="sidebar-footer">
+    v1.0.0 · RepoStory AI<br>
+    ⚡ Groq · 🍃 MongoDB<br>
+    🐙 GitHub REST API
+  </div>
+</div>
+
+<div id="toggle-btn" onclick="toggleSidebar()" title="Toggle sidebar">‹</div>
+
+<!-- ═══════ MAIN ═══════ -->
+<div id="main">
+
+  <div class="page-title">🚀 RepoStory AI</div>
+  <div class="page-eyebrow">AI-Powered Repository Intelligence · Groq LLaMA 3.3 70B</div>
+
+  <!-- ══ STORY MODE ══ -->
+  <div class="page-section active" id="page-story">
+    <p class="subtitle">Understand Any GitHub Repo In Seconds.</p>
+    <p class="subtitle-sub">Enter a public GitHub repository to generate an AI-powered narrative, milestones, and health score.</p>
+
+    <label class="form-label">🔗 Repository (owner/repo)</label>
+    <input class="repo-input" id="repo-input" type="text" placeholder="e.g. facebook/react" />
+
+    <div class="chip-row" id="example-chips">
+      <span class="chip" onclick="setRepo('facebook/react')">facebook/react</span>
+      <span class="chip" onclick="setRepo('django/django')">django/django</span>
+      <span class="chip" onclick="setRepo('vercel/next.js')">vercel/next.js</span>
+      <span class="chip" onclick="setRepo('torvalds/linux')">torvalds/linux</span>
+    </div>
+
+    <button class="cta-btn" id="gen-btn" onclick="generateStory()">✨ Generate Story</button>
+
+    <!-- Progress steps (shown during loading) -->
+    <div class="progress-steps" id="story-progress" style="display:none;">
+      <div class="step waiting" id="step-ingest">
+        <span class="step-icon">📥</span> <span id="step-ingest-text">Fetching commits from GitHub…</span>
+      </div>
+      <div class="step waiting" id="step-ai">
+        <span class="step-icon">🤖</span> <span id="step-ai-text">Groq LLaMA 3.3 70B analyzing commits…</span>
+      </div>
+      <div class="step waiting" id="step-done">
+        <span class="step-icon">✅</span> <span>Story ready</span>
+      </div>
+    </div>
+
+    <!-- Error box -->
+    <div class="output-box error" id="story-error" style="display:none;"></div>
+
+    <!-- Result panel -->
+    <div class="result-panel" id="story-result">
+
+      <div class="repo-slug" id="result-slug">🐙 —</div>
+
+      <!-- Stats strip -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-card-icon">📦</div>
+          <div>
+            <div class="stat-card-val" id="stat-commits">—</div>
+            <div class="stat-card-label">Commits</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-icon">🏁</div>
+          <div>
+            <div class="stat-card-val" id="stat-milestones">—</div>
+            <div class="stat-card-label">Milestones</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-icon">❤️</div>
+          <div>
+            <div class="stat-card-val" id="stat-health">—</div>
+            <div class="stat-card-label">Health Score</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('story-tab','story-tabs')">📖 Story</div>
+        <div class="tab" onclick="switchTab('tldr-tab','story-tabs')">⚡ TL;DR</div>
+        <div class="tab" onclick="switchTab('milestones-tab','story-tabs')">🏁 Milestones</div>
+        <div class="tab" onclick="switchTab('health-tab','story-tabs')">📊 Health</div>
+      </div>
+
+      <div id="story-tabs">
+        <div class="tab-panel active" id="story-tab">
+          <div class="story-text" id="story-text-content"></div>
+        </div>
+
+        <div class="tab-panel" id="tldr-tab">
+          <div class="tldr-list" id="tldr-list"></div>
+        </div>
+
+        <div class="tab-panel" id="milestones-tab">
+          <div class="milestone-timeline" id="milestone-list"></div>
+        </div>
+
+        <div class="tab-panel" id="health-tab">
+          <div class="health-grid">
+            <div class="health-score-box">
+              <div class="hs-number" id="hs-number">—</div>
+              <div class="hs-label" id="hs-label">—</div>
+              <div class="hs-bar-wrap"><div class="hs-bar" id="hs-bar" style="width:0%"></div></div>
+              <div style="font-size:10px;color:var(--dim);font-family:'Space Mono',monospace;margin-top:2px;">out of 100</div>
+            </div>
+            <div class="health-reasons" id="health-reasons"></div>
+          </div>
+          <div class="patterns-box" id="patterns-box" style="display:none;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Placeholder before first generate -->
+    <div class="empty-state" id="story-empty">
+      <div class="es-icon">🔭</div>
+      <div class="es-text">Enter a GitHub repository above to generate its AI story</div>
+    </div>
+  </div>
+
+  <!-- ══ ASK REPO ══ -->
+  <div class="page-section" id="page-ask">
+    <p class="subtitle">Ask Anything About a GitHub Repo.</p>
+    <p class="subtitle-sub">Get precise, AI-powered answers about a repository's history, decisions, and evolution.</p>
+
+    <label class="form-label">🔗 Repository (owner/repo)</label>
+    <input class="repo-input" id="ask-repo-input" type="text" placeholder="e.g. facebook/react" />
+
+    <label class="form-label">💬 Quick questions</label>
+    <div class="quick-chips">
+      <span class="quick-chip" onclick="setQuestion('Why was authentication added?')">🔍 Why was auth added?</span>
+      <span class="quick-chip" onclick="setQuestion('What were the biggest bug fixes?')">🐛 Biggest bug fixes?</span>
+      <span class="quick-chip" onclick="setQuestion('What changed most recently?')">📅 Recent changes?</span>
+      <span class="quick-chip" onclick="setQuestion('What major refactors happened?')">🏗️ Major refactors?</span>
+      <span class="quick-chip" onclick="setQuestion('When was the first release?')">🚀 First release?</span>
+      <span class="quick-chip" onclick="setQuestion('Who are the top contributors?')">👥 Top contributors?</span>
+    </div>
+
+    <label class="form-label">✏️ Your question</label>
+    <input class="repo-input" id="ask-question-input" type="text" placeholder="e.g. Why was this feature added?" />
+
+    <button class="cta-btn" id="ask-btn" onclick="askRepo()">🔍 Get Answer</button>
+
+    <div class="output-box error" id="ask-error" style="display:none;"></div>
+
+    <div id="ask-result" style="display:none; animation: fadeIn .3s ease;">
+      <div style="margin-bottom:8px;">
+        <div style="font-size:10px;color:var(--dim);font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;">Question</div>
+        <div style="font-size:13px;color:var(--muted);padding:10px 14px;background:rgba(255,255,255,0.02);border:1px solid var(--panel-border);border-radius:8px;" id="ask-q-display"></div>
+      </div>
+      <div style="font-size:10px;color:var(--dim);font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;">Answer</div>
+      <div class="answer-box" id="ask-answer"></div>
+    </div>
+
+    <div class="empty-state" id="ask-empty">
+      <div class="es-icon">💬</div>
+      <div class="es-text">Select a quick question or type your own above</div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+// ─────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────
+function getBackend() {
+  return document.getElementById('backend-url').value.trim().replace(/\/$/, '');
+}
+
+// ─────────────────────────────────────────
+// SIDEBAR
+// ─────────────────────────────────────────
+let sidebarOpen = true;
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const btn     = document.getElementById('toggle-btn');
+  sidebarOpen = !sidebarOpen;
+  sidebar.classList.toggle('collapsed', !sidebarOpen);
+  document.body.classList.toggle('sidebar-collapsed', !sidebarOpen);
+  btn.textContent = sidebarOpen ? '‹' : '›';
+  btn.style.left  = sidebarOpen ? '260px' : '0px';
+}
+
+function switchPage(page) {
+  ['story','ask'].forEach(p => {
+    document.getElementById(`nav-${p}`).classList.toggle('active', p === page);
+    document.getElementById(`page-${p}`).classList.toggle('active', p === page);
+  });
+}
+
+// ─────────────────────────────────────────
+// TABS
+// ─────────────────────────────────────────
+function switchTab(tabId, groupId) {
+  const group = document.getElementById(groupId);
+  group.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  // Update tab highlight
+  const tabs = group.previousElementSibling.querySelectorAll('.tab');
+  const panels = group.querySelectorAll('.tab-panel');
+  panels.forEach((p, i) => { if (p.id === tabId) tabs[i]?.classList.add('active'); else tabs[i]?.classList.remove('active'); });
+}
+
+// ─────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────
+function setRepo(r) { document.getElementById('repo-input').value = r; }
+function setQuestion(q) { document.getElementById('ask-question-input').value = q; }
+
+function typeBadge(t) {
+  const map = { feature:'tb-feature', bugfix:'tb-bugfix', refactor:'tb-refactor', release:'tb-release', init:'tb-init' };
+  const cls = map[(t||'other').toLowerCase()] || 'tb-other';
+  return `<span class="type-badge ${cls}">${t||'other'}</span>`;
+}
+function dotCls(t) {
+  return { bugfix:'bugfix', refactor:'refactor', release:'release', init:'init' }[(t||'').toLowerCase()] || '';
+}
+function healthCls(s) { return s>=75 ? 'hs-healthy' : s>=50 ? 'hs-moderate' : 'hs-needs'; }
+function healthBarColor(s) {
+  if (s>=75) return 'linear-gradient(90deg,#3fb950,#2ea043)';
+  if (s>=50) return 'linear-gradient(90deg,#e3b341,#d69e2e)';
+  return 'linear-gradient(90deg,#e5534b,#c0392b)';
+}
+
+function setStep(id, state, text) {
+  const el = document.getElementById(id);
+  el.className = `step ${state}`;
+  if (text) { const span = el.querySelector('span:last-child'); if(span) span.textContent = text; }
+  const icons = { waiting:'⏳', active:'⏳', done:'✅', error:'❌' };
+  const ic = el.querySelector('.step-icon');
+  if (ic) ic.textContent = icons[state] || '';
+  if (state === 'active') ic.innerHTML = '<div class="spinner" style="width:13px;height:13px;border-width:2px;"></div>';
+}
+
+async function apiGet(path, params) {
+  const url = new URL(getBackend() + path);
+  Object.entries(params || {}).forEach(([k,v]) => url.searchParams.set(k, v));
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+  return res.json();
+}
+
+// ─────────────────────────────────────────
+// BACKEND HEALTH CHECK
+// ─────────────────────────────────────────
+let healthTimer = null;
+function scheduleHealthCheck() {
+  clearTimeout(healthTimer);
+  healthTimer = setTimeout(checkBackendHealth, 600);
+}
+async function checkBackendHealth() {
+  const dot    = document.getElementById('health-dot');
+  const status = document.getElementById('sb-backend-status');
+  dot.className = 'config-status checking';
+  status.textContent = 'checking…';
+  status.style.color = 'var(--yellow)';
+  try {
+    const data = await apiGet('/');
+    dot.className = 'config-status online';
+    status.textContent = '● Online';
+    status.style.color = 'var(--green-text)';
+  } catch {
+    dot.className = 'config-status offline';
+    status.textContent = '● Offline';
+    status.style.color = 'var(--red-dot)';
+  }
+}
+checkBackendHealth();
+
+// ─────────────────────────────────────────
+// GENERATE STORY
+// ─────────────────────────────────────────
+async function generateStory() {
+  const repo = document.getElementById('repo-input').value.trim();
+
+  // Reset UI
+  document.getElementById('story-error').style.display  = 'none';
+  document.getElementById('story-result').classList.remove('visible');
+  document.getElementById('story-empty').style.display  = 'none';
+
+  if (!repo || !repo.includes('/')) {
+    showStoryError('⚠ Please enter a repo in the format  owner/repo  (e.g. facebook/react)');
+    return;
+  }
+
+  const [owner, repoName] = repo.split('/', 2);
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div> Generating…';
+
+  const progress = document.getElementById('story-progress');
+  progress.style.display = 'flex';
+  setStep('step-ingest', 'active', `Fetching commits from ${owner}/${repoName}…`);
+  setStep('step-ai', 'waiting', 'Groq LLaMA 3.3 70B analyzing commits…');
+  setStep('step-done', 'waiting', 'Story ready');
+
+  try {
+    // ── Step 1: Ingest ──
+    const ingest = await apiGet('/ingest', { owner, repo: repoName });
+    if (ingest.error) throw new Error(ingest.error);
+
+    const count = ingest.count || 0;
+    setStep('step-ingest', 'done', `✓ Fetched ${count} commits`);
+    document.getElementById('sb-commits').textContent  = count;
+    document.getElementById('sb-last-repo').textContent = `${owner}/${repoName}`;
+    setStep('step-ai', 'active', 'Groq LLaMA 3.3 70B analyzing commits…');
+
+    // ── Step 2: Generate story ──
+    const data = await apiGet('/story', { owner, repo: repoName });
+    if (data.error) throw new Error(data.error);
+
+    setStep('step-ai', 'done', '✓ AI story generated');
+    setStep('step-done', 'done', 'Story ready');
+
+    setTimeout(() => {
+      progress.style.display = 'none';
+      renderStory(data, owner, repoName, count);
+      btn.disabled = false;
+      btn.innerHTML = '✨ Generate Story';
+    }, 600);
+
+  } catch(err) {
+    progress.style.display = 'none';
+    setStep('step-ingest', 'error');
+    showStoryError(`❌ ${err.message}`);
+    btn.disabled = false;
+    btn.innerHTML = '✨ Generate Story';
+  }
+}
+
+function showStoryError(msg) {
+  const el = document.getElementById('story-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function renderStory(data, owner, repo, commitCount) {
+  const health     = data.health_score || {};
+  const score      = health.score || 0;
+  const milestones = data.milestones || [];
+  const tldr       = data.tldr || [];
+
+  // Slug + stats
+  document.getElementById('result-slug').innerHTML   = `🐙 &nbsp;${owner}/${repo}`;
+  document.getElementById('stat-commits').textContent = commitCount || data.commit_count || '—';
+  document.getElementById('stat-milestones').textContent = milestones.length;
+  document.getElementById('stat-health').textContent  = `${score}/100`;
+
+  // Story text
+  const storyEl = document.getElementById('story-text-content');
+  storyEl.textContent = data.story || 'No story generated.';
+
+  // TL;DR
+  const tldrIcons  = ['🎯','🏗️','🌱'];
+  const tldrLabels = ['What it does','How it\'s built','Current state'];
+  const tldrList   = document.getElementById('tldr-list');
+  tldrList.innerHTML = tldr.map((item, i) => `
+    <div class="tldr-item" style="animation-delay:${i*0.1}s">
+      <div class="tldr-icon">${tldrIcons[i]||'•'}</div>
+      <div>
+        <div class="tldr-meta">${tldrLabels[i]||''}</div>
+        <div class="tldr-body">${item}</div>
+      </div>
+    </div>
+  `).join('');
+
+  // Milestones
+  const mList = document.getElementById('milestone-list');
+  mList.innerHTML = milestones.map((m, i) => `
+    <div class="milestone-item" style="animation-delay:${i*0.08}s">
+      <div class="milestone-dot ${dotCls(m.type)}"></div>
+      <div class="milestone-card">
+        <div class="mc-top">
+          ${typeBadge(m.type)}
+          <span class="mc-title">${m.title||''}</span>
+          <span class="mc-date">📅 ${m.date||''}</span>
+        </div>
+        <div class="mc-desc">${m.description||''}</div>
+      </div>
+    </div>
+  `).join('');
+
+  // Health
+  const hCls = healthCls(score);
+  document.getElementById('hs-number').textContent = score;
+  document.getElementById('hs-number').className   = `hs-number ${hCls}`;
+  document.getElementById('hs-label').textContent  = health.label || '—';
+  const bar = document.getElementById('hs-bar');
+  bar.style.width      = '0%';
+  bar.style.background = healthBarColor(score);
+  setTimeout(() => { bar.style.width = `${score}%`; }, 100);
+
+  const reasons = document.getElementById('health-reasons');
+  reasons.innerHTML = (health.reasons||[]).map(r => `
+    <div class="hr-item"><div class="hr-check">✓</div>${r}</div>
+  `).join('');
+
+  const patternsBox = document.getElementById('patterns-box');
+  if (data.patterns) {
+    patternsBox.textContent = data.patterns;
+    patternsBox.style.display = 'block';
+  }
+
+  // Show result
+  const panel = document.getElementById('story-result');
+  panel.classList.add('visible');
+}
+
+// ─────────────────────────────────────────
+// ASK REPO
+// ─────────────────────────────────────────
+async function askRepo() {
+  const repo     = document.getElementById('ask-repo-input').value.trim();
+  const question = document.getElementById('ask-question-input').value.trim();
+
+  document.getElementById('ask-error').style.display  = 'none';
+  document.getElementById('ask-result').style.display = 'none';
+  document.getElementById('ask-empty').style.display  = 'none';
+
+  if (!repo || !repo.includes('/')) {
+    showAskError('⚠ Enter a valid owner/repo (e.g. facebook/react)');
+    return;
+  }
+  if (!question.trim()) {
+    showAskError('⚠ Please enter a question.');
+    return;
+  }
+
+  const [owner, repoName] = repo.split('/', 2);
+  const btn = document.getElementById('ask-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div> Thinking…';
+
+  try {
+    const data = await apiGet('/ask', { owner, repo: repoName, q: question });
+    if (data.error) {
+      const hint = data.error.includes('No commits') ? ' Go to Story Mode to ingest this repo first.' : '';
+      throw new Error(data.error + hint);
+    }
+    document.getElementById('ask-q-display').textContent = data.question || question;
+    document.getElementById('ask-answer').textContent    = data.answer   || 'No answer returned.';
+    document.getElementById('ask-result').style.display  = 'block';
+  } catch(err) {
+    showAskError(`❌ ${err.message}`);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '🔍 Get Answer';
+}
+
+function showAskError(msg) {
+  const el = document.getElementById('ask-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// ─────────────────────────────────────────
+// KEYBOARD SHORTCUTS
+// ─────────────────────────────────────────
+document.getElementById('repo-input').addEventListener('keydown', e => { if (e.key === 'Enter') generateStory(); });
+document.getElementById('ask-question-input').addEventListener('keydown', e => { if (e.key === 'Enter') askRepo(); });
+
+// Auto-fill ask repo from last used
+document.getElementById('nav-ask').addEventListener('click', () => {
+  const last = document.getElementById('sb-last-repo').textContent;
+  if (last && last !== '—' && !document.getElementById('ask-repo-input').value) {
+    document.getElementById('ask-repo-input').value = last;
+  }
+});
+</script>
+</body>
+</html>
