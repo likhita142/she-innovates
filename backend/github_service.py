@@ -1,25 +1,45 @@
 import requests
 import os
 from dotenv import load_dotenv
-load_dotenv(".env")
+load_dotenv()
 
 TOKEN = os.getenv("GITHUB_TOKEN")
 
-def get_commits(owner, repo):
+def get_commits(owner, repo, max_pages=10):
+    """
+    Fetch commits from GitHub API.
+    max_pages: Limit to prevent fetching too many commits (default 10 pages = 1000 commits)
+    """
     all_commits = []
     page = 1
-    while True:
+    print(f"🔍 Fetching commits from {owner}/{repo}...")
+    
+    while page <= max_pages:
         url = f"https://api.github.com/repos/{owner}/{repo}/commits?page={page}&per_page=100"
         headers = {
             "Authorization": f"Bearer {TOKEN}",
             "Accept": "application/vnd.github+json"
         }
-        response = requests.get(url, headers=headers)
+        
+        print(f"  📄 Fetching page {page}...")
+        response = requests.get(url, headers=headers, timeout=10)
+        
+        if response.status_code != 200:
+            print(f"  ⚠️ GitHub API returned status {response.status_code}")
+            if response.status_code == 403:
+                print(f"  ⚠️ Rate limit hit or auth issue")
+            break
+            
         data = response.json()
         if not isinstance(data, list) or len(data) == 0:
+            print(f"  ✅ No more commits (fetched {len(all_commits)} total)")
             break
+            
         all_commits.extend(data)
+        print(f"  ✓ Page {page}: {len(data)} commits (total: {len(all_commits)})")
         page += 1
+        
+    print(f"✅ Finished fetching {len(all_commits)} commits from {owner}/{repo}")
     return all_commits
 
 

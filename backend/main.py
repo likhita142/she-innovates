@@ -1,9 +1,19 @@
 from fastapi import FastAPI, Query
-from .github_service import get_commits, flatten_commit
-from .db import commits_collection
-from .ai_story_generator import generate_story, answer_question
+from fastapi.middleware.cors import CORSMiddleware
+from github_service import get_commits, flatten_commit
+from db import commits_collection
+from ai_story_generator import generate_story, answer_question
 
 app = FastAPI()
+
+# Add CORS middleware to allow frontend connections
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for development
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/")
@@ -97,4 +107,47 @@ def ask(owner: str, repo: str, q: str = Query(..., description="Your question ab
         }
 
     except Exception as e:
+        return {"error": str(e)}
+
+
+# ─────────────────────────────────────────
+# /generate  — single endpoint for frontend
+# Accepts POST with {"repo": "owner/repo"}
+# ─────────────────────────────────────────
+@app.post("/generate")
+def generate(body: dict):
+    try:
+        repo = body.get("repo", "")
+        if "/" not in repo:
+            return {"error": "Invalid repo format. Use 'owner/repo'"}
+        
+        owner, repo_name = repo.split("/", 1)
+        
+        # Step 1: Ingest commits
+        print(f"INGEST STARTED: {owner}/{repo_name}")
+        raw_commits = get_commits(owner, repo_name)
+        print(f"COMMITS FETCHED: {len(raw_commits)}")
+        
+        if not raw_commits:
+            return {"error": "No commits found. Check owner/repo name or GitHub token."}
+        
+        # Clean old data and insert new
+        commits_collection.delete_many({"owner": owner, "repo": repo_name})
+        cleaned = [flatten_commit(c, owner, repo_name) for c in raw_commits]
+        commits_collection.insert_many(cleaned)
+        
+        # Step 2: Generate story
+        print(f"Generating story for {owner}/{repo_name} with {len(cleaned)} commits...")
+        result = generate_story(cleaned, repo_name=f"{owner}/{repo_name}")
+        
+        return {
+            "owner": owner,
+            "repo": repo_name,
+            "commit_count": len(cleaned),
+            **result
+        }
+    
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         return {"error": str(e)}
